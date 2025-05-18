@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment
+.env
+.venv
+env/
+venv/
+
+# Configuration
+config.py
+
+# IDE
+.vscode/
+.idea/
+
+# Model files
+*.pth 
