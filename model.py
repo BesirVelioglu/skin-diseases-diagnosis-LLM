@@ -2,6 +2,10 @@ import torch
 import torchvision.models as models
 import torchvision.transforms as transforms
 from PIL import Image
+import warnings
+
+# Suppress specific warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="torchvision")
 
 class DermNetModel:
     def __init__(self, model_path):
@@ -32,10 +36,16 @@ class DermNetModel:
             'Warts Molluscum and other Viral Infections'
         ]
         
-        # Model yükleme
-        self.model = models.resnet50(pretrained=False)
+        # Model yükleme - deprecated 'pretrained' parametresi yerine 'weights' kullan
+        self.model = models.resnet50(weights=None)  # weights=None, pretrained=False ile aynı
         self.model.fc = torch.nn.Linear(self.model.fc.in_features, len(self.classes))
-        self.model.load_state_dict(torch.load(model_path, map_location=self.device))
+        
+        # Model ağırlıklarını yükle
+        try:
+            self.model.load_state_dict(torch.load(model_path, map_location=self.device))
+        except Exception as e:
+            raise Exception(f"Model dosyası yüklenemedi: {str(e)}")
+            
         self.model.to(self.device)
         self.model.eval()
         
@@ -51,10 +61,15 @@ class DermNetModel:
         """
         Görüntüyü tahmin eder ve en yüksek olasılıklı sınıfı döndürür
         """
-        image = self.transform(image).unsqueeze(0).to(self.device)
+        # PIL Image'ı RGB'ye çevir (RGBA veya grayscale olabilir)
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+            
+        # Transform ve batch dimension ekle
+        image_tensor = self.transform(image).unsqueeze(0).to(self.device)
         
         with torch.no_grad():
-            outputs = self.model(image)
+            outputs = self.model(image_tensor)
             probabilities = torch.nn.functional.softmax(outputs, dim=1)
             predicted_class = torch.argmax(probabilities, dim=1).item()
             confidence = probabilities[0][predicted_class].item()
